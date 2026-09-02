@@ -154,34 +154,24 @@
     <script type="module" src="app.js"></script>
     
     <script>
-        // Handle Time Interval Selection
+        // Handle Date Filter Selection
         document.addEventListener('DOMContentLoaded', () => {
-            const btns = document.querySelectorAll('.interval-btn');
+            const dateFilter = document.getElementById('laporan-date-filter');
             const tbody = document.getElementById('table-body');
             
-            btns.forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    // Reset all buttons
-                    btns.forEach(b => {
-                        b.className = 'interval-btn px-4 py-1.5 rounded-lg text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors';
-                    });
-                    
-                    // Set active button
-                    const clicked = e.target;
-                    clicked.className = 'interval-btn px-4 py-1.5 rounded-lg text-sm font-bold bg-secondary-500 text-white shadow-sm transition-colors';
-                    
-                    // Table empty state logic
-                    const interval = clicked.getAttribute('data-interval');
-                    if (interval !== '24h') {
-                        tbody.innerHTML = `<tr><td colspan="6" class="py-10 text-center text-gray-400 font-medium italic">Riwayat data belum tersedia untuk interval ${clicked.innerText}</td></tr>`;
+            if (dateFilter) {
+                const today = new Date().toISOString().split('T')[0];
+                dateFilter.value = today;
+                
+                dateFilter.addEventListener('change', (e) => {
+                    const selectedDate = e.target.value;
+                    if (selectedDate !== today) {
+                        tbody.innerHTML = `<tr><td colspan="4" class="py-10 text-center text-gray-400 font-medium italic">Not yet data today</td></tr>`;
                     } else {
-                        // Clear to allow real-time data to show, or show waiting message if empty
-                        if(tbody.children.length === 0 || (tbody.children.length === 1 && tbody.innerHTML.includes('Riwayat data belum tersedia'))) {
-                            tbody.innerHTML = `<tr><td colspan="6" class="py-10 text-center text-gray-400 font-medium italic">Menunggu data real-time...</td></tr>`;
-                        }
+                        tbody.innerHTML = `<tr><td colspan="4" class="py-10 text-center text-gray-400 font-medium italic">Menunggu data real-time...</td></tr>`;
                     }
                 });
-            });
+            }
         });
 
         // Export Functions
