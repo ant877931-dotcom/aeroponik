@@ -61,6 +61,30 @@ const mainChart = new Chart(ctxMain, {
     options: commonOptions
 });
 
+// --- Date Picker Logic ---
+const dateFilter = document.getElementById('chart-date-filter');
+const noDataMessage = document.getElementById('no-data-message');
+const chartCanvas = document.getElementById('mainChart');
+
+if (dateFilter) {
+    // Set today's date as default
+    const today = new Date().toISOString().split('T')[0];
+    dateFilter.value = today;
+
+    dateFilter.addEventListener('change', (e) => {
+        const selectedDate = e.target.value;
+        if (selectedDate !== today) {
+            // Show "no data" overlay if not today
+            if (noDataMessage) noDataMessage.classList.remove('hidden');
+            if (chartCanvas) chartCanvas.style.opacity = '0.1';
+        } else {
+            // Hide overlay if today
+            if (noDataMessage) noDataMessage.classList.add('hidden');
+            if (chartCanvas) chartCanvas.style.opacity = '1';
+        }
+    });
+}
+
 // Function to update the combined Chart dynamically
 function updateCharts(tds, ph) {
     if (tds === null && ph === null) return;
