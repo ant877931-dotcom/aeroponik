@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f4f7fb; /* Lighter clean slate tone */
+}
+
+/* Custom iOS Style Toggle Switches */
+.toggle-checkbox:checked ~ .dot {
+    transform: translateX(100%);
+}
+.toggle-checkbox:checked ~ .toggle-bg {
+    background-color: #2563eb; /* primary-600 (Blue) */
+}
+
+/* Custom Scrollbar for a cleaner look */
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Premium Card Effects (Glassmorphism & Shadows) */
+.glass-card {
+    background: #ffffff;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    transition: all 0.3s ease;
+}
+.glass-card:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+    transform: translateY(-2px);
+}

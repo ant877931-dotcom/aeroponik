@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Aeroponic & AI Vision Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eff6ff', 100: '#dbeafe', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+                        secondary: { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d' }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="text-gray-800 antialiased min-h-screen relative overflow-hidden flex bg-slate-50">
+    <!-- Mobile Sidebar Overlay -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-30 hidden lg:hidden transition-opacity duration-300 opacity-0 pointer-events-none"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-40 w-72 bg-white border-r border-gray-100 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col h-screen overflow-y-auto hidden-scrollbar shadow-xl lg:shadow-none">
+        
+        <!-- Logo Area -->
+        <div class="p-6 flex items-center gap-3">
+            <div class="bg-secondary-600 p-2.5 rounded-xl shadow-sm">
+                <i class="fa-solid fa-leaf text-white text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-extrabold tracking-tight text-gray-800">Pakcoy</h1>
+                <p class="text-xs font-medium text-gray-500">Smart Farming</p>
+            </div>
+            <!-- Mobile Close Button -->
+            <button id="btn-close-sidebar" class="ml-auto lg:hidden w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200 transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Navigation Menu -->
+        <nav id="sidebar-nav" class="flex-1 px-4 space-y-1 mt-2">
+            <a href="#" class="nav-item active flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary-50 text-secondary-600 font-bold transition-all relative overflow-hidden group">
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-secondary-500 rounded-r-md"></div>
+                <i class="fa-solid fa-house w-5 text-center text-[15px]"></i>
+                <span class="text-sm">Beranda</span>
+            </a>
+            <a href="#monitoring" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-800 font-medium transition-all">
+                <i class="fa-solid fa-chart-line w-5 text-center text-[15px]"></i>
+                <span class="text-sm">Monitoring</span>
+            </a>
+
+            <a href="#citra" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-800 font-medium transition-all">
+                <i class="fa-solid fa-seedling w-5 text-center text-[15px]"></i>
+                <span class="text-sm">Citra Tanaman</span>
+            </a>
+            <a href="notifikasi.html" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-800 font-medium transition-all">
+                <i class="fa-regular fa-bell w-5 text-center text-[15px]"></i>
+                <span class="text-sm">Notifikasi</span>
+            </a>
+            <a href="laporan.html" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-800 font-medium transition-all">
+                <i class="fa-regular fa-file-lines w-5 text-center text-[15px]"></i>
+                <span class="text-sm">Laporan</span>
+            </a>
+            <a href="#kontrol" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-800 font-medium transition-all">
+                <i class="fa-solid fa-gear w-5 text-center text-[15px]"></i>
+                <span class="text-sm">Pengaturan</span>
+            </a>
+        </nav>
+
+        <!-- Widgets in Sidebar -->
+        <div class="px-4 pb-6 space-y-4 mt-6">
+            <!-- Status Sistem Widget -->
+            <div class="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                <h3 class="text-xs font-bold text-gray-700 mb-2">Status Sistem</h3>
+                <div class="flex items-center gap-2 mb-1">
+                    <span id="conn-indicator" class="relative flex h-2 w-2">
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </span>
+                    <span id="conn-text" class="text-[13px] font-bold text-red-600">Menunggu Koneksi IoT...</span>
+                </div>
+            </div>
+
+
+        </div>
+    </aside>
+
+    <!-- Main Content Wrapper -->
+    <div class="flex-1 flex flex-col h-screen overflow-hidden relative">
+        <!-- Background Elements -->
+        <div class="absolute inset-0 z-[-1] overflow-hidden pointer-events-none">
+            <div class="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-primary-100 opacity-50 blur-3xl"></div>
+            <div class="absolute bottom-0 left-0 -ml-20 -mb-20 w-96 h-96 rounded-full bg-secondary-100 opacity-50 blur-3xl"></div>
+        </div>
+
+        <!-- Mobile Header (Visible only on small screens) -->
+        <div class="lg:hidden bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-3 flex items-center justify-between z-20">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-br from-primary-500 to-secondary-500 p-2 rounded-lg shadow-md">
+                    <i class="fa-solid fa-leaf text-white text-sm"></i>
+                </div>
+                <h1 class="text-lg font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-primary-700 to-secondary-600">Pakcoy</h1>
+            </div>
+            <button id="btn-open-sidebar" class="w-10 h-10 rounded-xl bg-gray-50 text-gray-600 border border-gray-200 flex items-center justify-center hover:bg-gray-100 transition-colors">
+                <i class="fa-solid fa-bars text-lg"></i>
+            </button>
+        </div>
+
+        <!-- Scrollable Content Area -->
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+            <div class="max-w-[1400px] mx-auto space-y-8">
+        
+        <!-- 1. Header -->
+        <header class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex flex-col xl:flex-row justify-between items-start xl:items-center z-10 relative">
+            <div class="mb-4 xl:mb-0 max-w-3xl">
+                <h1 class="text-[17px] font-extrabold tracking-tight text-gray-800 leading-tight">
+                    Pengembangan Sistem Aeroponik Berbasis Internet of Things dan Pengolahan Citra untuk Monitoring dan Kontrol Kesehatan Tanaman Pakcoy
+                </h1>
+                <p class="text-xs font-medium text-gray-500 mt-1">Dashboard Monitoring & Kontrol Kesehatan Tanaman Pakcoy</p>
+            </div>
+            
+            <div class="flex items-center gap-3 w-full xl:w-auto">
+                <div class="bg-white border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 cursor-pointer hover:bg-gray-50 w-full xl:w-auto justify-center">
+                    <i class="fa-regular fa-calendar text-gray-400"></i> Hari Ini <i class="fa-solid fa-chevron-down text-[10px] ml-2"></i>
+                </div>
+                <button class="bg-secondary-600 hover:bg-secondary-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 w-full xl:w-auto shrink-0 shadow-sm">
+                    <i class="fa-solid fa-download"></i> Ekspor Laporan
+                </button>
+            </div>
+        </header>
+
+        <!-- 2. Section Metrik Sensor (6 Columns) -->
+        <section id="monitoring" class="scroll-mt-8">
+            <div class="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                <!-- CO2 -->
+                <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group">
+                    <div class="flex justify-between items-start z-10">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-cloud text-green-500 text-lg w-5 text-center"></i>
+                            <p class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">CO₂ (ppm)</p>
+                        </div>
+                    </div>
+                    <div class="mt-2 z-10">
+                        <div id="sensor-co2-data" class="hidden">
+                            <div class="flex items-baseline gap-1">
+                                <h3 id="sensor-co2" class="text-2xl font-black text-gray-800"></h3>
+                                <span class="text-gray-500 font-bold text-sm">ppm</span>
+                            </div>
+                        </div>
+                        <p id="sensor-co2-empty" class="text-[10px] text-red-500 font-bold mt-1 leading-tight">Belum ada data dari alat IoT</p>
+                    </div>
+                    <svg class="absolute bottom-0 left-0 w-full h-8 text-green-200" preserveAspectRatio="none" viewBox="0 0 100 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M0 5 Q 20 15, 40 5 T 80 15 T 100 5 L 100 20 L 0 20 Z" fill="currentColor" fill-opacity="0.3"/>
+                        <path d="M0 5 Q 20 15, 40 5 T 80 15 T 100 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+
+                <!-- pH -->
+                <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group">
+                    <div class="flex justify-between items-start z-10">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-vial text-purple-500 text-lg w-5 text-center"></i>
+                            <p class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">pH</p>
+                        </div>
+                    </div>
+                    <div class="mt-2 z-10">
+                        <div id="sensor-ph-data" class="hidden">
+                            <div class="flex items-baseline gap-1">
+                                <h3 id="sensor-ph" class="text-2xl font-black text-gray-800"></h3>
+                            </div>
+                        </div>
+                        <p id="sensor-ph-empty" class="text-[10px] text-red-500 font-bold mt-1 leading-tight">Belum ada data dari alat IoT</p>
+                    </div>
+                    <svg class="absolute bottom-0 left-0 w-full h-8 text-purple-200" preserveAspectRatio="none" viewBox="0 0 100 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M0 15 Q 10 5, 25 15 T 50 10 T 75 15 T 100 5 L 100 20 L 0 20 Z" fill="currentColor" fill-opacity="0.3"/>
+                        <path d="M0 15 Q 10 5, 25 15 T 50 10 T 75 15 T 100 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+
+                <!-- Nutrisi (EC) -->
+                <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group">
+                    <div class="flex justify-between items-start z-10">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-leaf text-secondary-500 text-lg w-5 text-center"></i>
+                            <p class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Nutrisi (EC)</p>
+                        </div>
+                    </div>
+                    <div class="mt-2 z-10">
+                        <div id="sensor-tds-data" class="hidden">
+                            <div class="flex items-baseline gap-1">
+                                <h3 id="sensor-tds" class="text-2xl font-black text-gray-800"></h3>
+                                <span class="text-gray-500 font-bold text-sm">mS/cm</span>
+                            </div>
+                        </div>
+                        <p id="sensor-tds-empty" class="text-[10px] text-red-500 font-bold mt-1 leading-tight">Belum ada data dari alat IoT</p>
+                    </div>
+                    <svg class="absolute bottom-0 left-0 w-full h-8 text-secondary-200" preserveAspectRatio="none" viewBox="0 0 100 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M0 10 Q 20 20, 40 10 T 70 5 T 100 15 L 100 20 L 0 20 Z" fill="currentColor" fill-opacity="0.3"/>
+                        <path d="M0 10 Q 20 20, 40 10 T 70 5 T 100 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+
+                <!-- Level Air -->
+                <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group">
+                    <div class="flex justify-between items-start z-10">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-water text-blue-400 text-lg w-5 text-center"></i>
+                            <p class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Level Air (L)</p>
+                        </div>
+                    </div>
+                    <div class="mt-2 z-10">
+                        <div id="sensor-vol-data" class="hidden">
+                            <div class="flex items-baseline gap-1">
+                                <h3 id="sensor-vol" class="text-2xl font-black text-gray-800"></h3>
+                                <span class="text-gray-500 font-bold text-sm">L</span>
+                            </div>
+                            <div class="w-full bg-gray-100 rounded-full h-1 mt-2 overflow-hidden">
+                                <div id="vol-bar" class="bg-yellow-400 h-full transition-all duration-500" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                        <p id="sensor-vol-empty" class="text-[10px] text-red-500 font-bold mt-1 leading-tight">Belum ada data dari alat IoT</p>
+                    </div>
+                    <svg class="absolute bottom-0 left-0 w-full h-8 text-yellow-200" preserveAspectRatio="none" viewBox="0 0 100 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M0 15 Q 15 5, 30 15 T 60 10 T 80 15 T 100 5 L 100 20 L 0 20 Z" fill="currentColor" fill-opacity="0.3"/>
+                        <path d="M0 15 Q 15 5, 30 15 T 60 10 T 80 15 T 100 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. Middle Section: Charts & Images & Controls -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-10">
+            
+            <!-- Left Column: Main Chart & Data Log -->
+            <div class="lg:col-span-7 xl:col-span-8 flex flex-col gap-6">
+                <!-- Tren Parameter Lingkungan Chart -->
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col h-[400px]">
+                    <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
+                        <h2 class="text-[15px] font-extrabold text-gray-800">Tren Parameter Lingkungan</h2>
+                        <div class="flex bg-gray-50 p-1 rounded-lg border border-gray-200">
+                            <button class="px-3 py-1 text-[11px] font-bold text-gray-500 hover:text-gray-700 rounded-md">1 Jam</button>
+                            <button class="px-3 py-1 text-[11px] font-bold text-gray-500 hover:text-gray-700 rounded-md">6 Jam</button>
+                            <button class="px-3 py-1 text-[11px] font-bold text-white bg-secondary-600 rounded-md shadow-sm">24 Jam</button>
+                            <button class="px-3 py-1 text-[11px] font-bold text-gray-500 hover:text-gray-700 rounded-md">7 Hari</button>
+                        </div>
+                    </div>
+                    <div class="p-4 flex flex-wrap items-center gap-4 border-b border-gray-50 text-[11px] font-bold text-gray-600">
+                        <div class="flex items-center gap-1.5"><div class="w-2.5 h-0.5 bg-green-500"></div> CO₂ (ppm)</div>
+                        <div class="flex items-center gap-1.5"><div class="w-2.5 h-0.5 bg-purple-400"></div> pH</div>
+                    </div>
+                    <div class="p-5 flex-1 relative w-full">
+                        <canvas id="mainChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: AI Vision, Controls, Notifications -->
+            <div class="lg:col-span-5 xl:col-span-4 flex flex-col gap-6">
+                <!-- Citra Tanaman & Status Kesehatan -->
+                <div id="citra" class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col scroll-mt-8">
+                    <div class="px-5 py-4 border-b border-gray-100">
+                        <h2 class="text-[15px] font-extrabold text-gray-800">Citra Tanaman & Status Kesehatan</h2>
+                    </div>
+                    <div class="p-4 grid grid-cols-2 gap-4">
+                        <div class="relative w-full h-40 rounded-xl overflow-hidden bg-gray-900 shadow-inner group flex items-center justify-center p-2 text-center">
+                            <p id="camera-feed-empty" class="text-xs text-gray-400 font-medium z-10">Kamera Offline / Belum ada data</p>
+                            <img id="camera-feed" src="" alt="Live Feed" class="object-cover w-full h-full opacity-90 transition-transform duration-500 group-hover:scale-105 hidden absolute inset-0 z-20">
+                        </div>
+                        <div class="flex flex-col justify-center space-y-4">
+                            <div>
+                                <p class="text-[11px] font-bold text-gray-500 mb-1">Status Kesehatan</p>
+                                <span id="plant-health" class="bg-red-50 text-red-600 px-3 py-1 rounded-md text-[11px] font-bold border border-red-100 inline-block leading-tight">Belum ada deteksi dari AI</span>
+                            </div>
+                            <div>
+                                <p class="text-[11px] font-bold text-gray-500 mb-1">Tingkat Keyakinan</p>
+                                <p id="model-accuracy" class="text-sm font-extrabold text-gray-800">-</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pengaturan Perangkat -->
+                <div id="kontrol" class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col scroll-mt-8">
+                    <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                        <h2 class="text-[15px] font-extrabold text-gray-800">Pengaturan Perangkat</h2>
+                    </div>
+                    <div class="p-4 space-y-3">
+                        <!-- Toggle Pompa Air -->
+                        <div class="flex items-center justify-between bg-gray-50/50 p-3 rounded-xl border border-gray-100">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-lg bg-white flex items-center justify-center text-blue-500 shadow-sm border border-gray-100">
+                                    <i class="fa-solid fa-faucet-drip text-sm"></i>
+                                </div>
+                                <div>
+                                    <span class="block text-sm font-bold text-gray-700 leading-tight">Pompa Air</span>
+                                </div>
+                            </div>
+                            <label class="flex items-center cursor-pointer">
+                                <div class="relative">
+                                    <input type="checkbox" id="toggle-air" class="sr-only toggle-checkbox">
+                                    <div class="block bg-gray-200 w-11 h-6 rounded-full transition-colors duration-300 toggle-bg shadow-inner"></div>
+                                    <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 shadow-sm"></div>
+                                </div>
+                            </label>
+                        </div>
+                        
+                        <!-- Toggle Pompa Nutrisi -->
+                        <div class="flex items-center justify-between bg-gray-50/50 p-3 rounded-xl border border-gray-100">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-lg bg-white flex items-center justify-center text-secondary-500 shadow-sm border border-gray-100">
+                                    <i class="fa-solid fa-flask text-sm"></i>
+                                </div>
+                                <div>
+                                    <span class="block text-sm font-bold text-gray-700 leading-tight">Pompa Nutrisi A</span>
+                                </div>
+                            </div>
+                            <label class="flex items-center cursor-pointer">
+                                <div class="relative">
+                                    <input type="checkbox" id="toggle-nutrisi" class="sr-only toggle-checkbox">
+                                    <div class="block bg-gray-200 w-11 h-6 rounded-full transition-colors duration-300 toggle-bg shadow-inner"></div>
+                                    <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 shadow-sm"></div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Toggle Pompa Misting -->
+                        <div class="flex items-center justify-between bg-gray-50/50 p-3 rounded-xl border border-gray-100">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-lg bg-white flex items-center justify-center text-cyan-500 shadow-sm border border-gray-100">
+                                    <i class="fa-solid fa-cloud-showers-heavy text-sm"></i>
+                                </div>
+                                <div>
+                                    <span class="block text-sm font-bold text-gray-700 leading-tight">Pompa Misting</span>
+                                </div>
+                            </div>
+                            <label class="flex items-center cursor-pointer">
+                                <div class="relative">
+                                    <input type="checkbox" id="toggle-misting" class="sr-only toggle-checkbox">
+                                    <div class="block bg-gray-200 w-11 h-6 rounded-full transition-colors duration-300 toggle-bg shadow-inner"></div>
+                                    <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 shadow-sm"></div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Toggle Pompa Utama -->
+                        <div class="flex items-center justify-between bg-gray-50/50 p-3 rounded-xl border border-gray-100">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-lg bg-white flex items-center justify-center text-yellow-500 shadow-sm border border-gray-100">
+                                    <i class="fa-solid fa-water text-sm"></i>
+                                </div>
+                                <div>
+                                    <span class="block text-sm font-bold text-gray-700 leading-tight">Pompa Utama</span>
+                                </div>
+                            </div>
+                            <label class="flex items-center cursor-pointer">
+                                <div class="relative">
+                                    <input type="checkbox" id="toggle-utama" class="sr-only toggle-checkbox">
+                                    <div class="block bg-gray-200 w-11 h-6 rounded-full transition-colors duration-300 toggle-bg shadow-inner"></div>
+                                    <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 shadow-sm"></div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            
+        </section>
+
+    <!-- Application Logic -->
+    <script type="module" src="app.js"></script>
+</body>
+</html>

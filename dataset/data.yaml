@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 2
+names: ['pakcoy_sehat', 'pakcoy_tidak_sehat']
+
+roboflow:
+  workspace: tugas-akhir-bagas-dwi-saputra
+  project: tugas-akhir-bagas-dwi-saputra-vab2q
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/tugas-akhir-bagas-dwi-saputra/tugas-akhir-bagas-dwi-saputra-vab2q/dataset/1

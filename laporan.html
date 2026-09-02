@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laporan - Smart Aeroponic</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <!-- SheetJS for Excel Download -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- html2pdf for PDF Download -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eff6ff', 100: '#dbeafe', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+                        secondary: { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d' }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="text-gray-800 antialiased min-h-screen relative overflow-hidden flex bg-slate-50">
+    <div id="sidebar-overlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-30 hidden lg:hidden transition-opacity duration-300 opacity-0 pointer-events-none"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-40 w-72 bg-white border-r border-gray-100 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col h-screen overflow-y-auto hidden-scrollbar shadow-xl lg:shadow-none">
+        
+        <div class="p-6 flex items-center gap-3">
+            <div class="bg-secondary-600 p-2.5 rounded-xl shadow-sm">
+                <i class="fa-solid fa-leaf text-white text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-extrabold tracking-tight text-gray-800">Pakcoy</h1>
+                <p class="text-xs font-medium text-gray-500">Smart Farming</p>
+            </div>
+            <button id="btn-close-sidebar" class="ml-auto lg:hidden w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200 transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <nav id="sidebar-nav" class="flex-1 px-4 space-y-1 mt-2">
+            <a href="index.html" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-800 font-medium transition-all">
+                <i class="fa-solid fa-house w-5 text-center text-[15px]"></i>
+                <span class="text-sm">Beranda</span>
+            </a>
+            <a href="index.html#monitoring" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-800 font-medium transition-all">
+                <i class="fa-solid fa-chart-line w-5 text-center text-[15px]"></i>
+                <span class="text-sm">Monitoring</span>
+            </a>
+
+            <a href="index.html#citra" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-800 font-medium transition-all">
+                <i class="fa-solid fa-seedling w-5 text-center text-[15px]"></i>
+                <span class="text-sm">Citra Tanaman</span>
+            </a>
+            <a href="notifikasi.html" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-800 font-medium transition-all">
+                <i class="fa-regular fa-bell w-5 text-center text-[15px]"></i>
+                <span class="text-sm">Notifikasi</span>
+            </a>
+            <a href="laporan.html" class="nav-item active flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary-50 text-secondary-600 font-bold transition-all relative overflow-hidden group">
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-secondary-500 rounded-r-md"></div>
+                <i class="fa-solid fa-file-lines w-5 text-center text-[15px]"></i>
+                <span class="text-sm">Laporan</span>
+            </a>
+            <a href="index.html#kontrol" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-800 font-medium transition-all">
+                <i class="fa-solid fa-gear w-5 text-center text-[15px]"></i>
+                <span class="text-sm">Pengaturan</span>
+            </a>
+        </nav>
+
+        <div class="px-4 pb-6 space-y-4 mt-6">
+            <div class="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                <h3 class="text-xs font-bold text-gray-700 mb-2">Status Sistem</h3>
+                <div class="flex items-center gap-2 mb-1">
+                    <span id="conn-indicator" class="relative flex h-2 w-2">
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </span>
+                    <span id="conn-text" class="text-[13px] font-bold text-red-600">Menunggu Koneksi IoT...</span>
+                </div>
+            </div>
+
+
+        </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col h-screen overflow-hidden relative">
+        <div class="absolute inset-0 z-[-1] overflow-hidden pointer-events-none">
+            <div class="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-primary-100 opacity-50 blur-3xl"></div>
+            <div class="absolute bottom-0 left-0 -ml-20 -mb-20 w-96 h-96 rounded-full bg-secondary-100 opacity-50 blur-3xl"></div>
+        </div>
+
+        <div class="lg:hidden bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-3 flex items-center justify-between z-20">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-br from-primary-500 to-secondary-500 p-2 rounded-lg shadow-md">
+                    <i class="fa-solid fa-leaf text-white text-sm"></i>
+                </div>
+                <h1 class="text-lg font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-primary-700 to-secondary-600">Pakcoy</h1>
+            </div>
+            <button id="btn-open-sidebar" class="w-10 h-10 rounded-xl bg-gray-50 text-gray-600 border border-gray-200 flex items-center justify-center hover:bg-gray-100 transition-colors">
+                <i class="fa-solid fa-bars text-lg"></i>
+            </button>
+        </div>
+
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+            <div class="max-w-[1200px] mx-auto space-y-6">
+                
+                <header class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 z-10 relative">
+                    <div>
+                        <h1 class="text-2xl font-extrabold tracking-tight text-gray-800">Laporan Data Sensor</h1>
+                        <p class="text-xs font-medium text-gray-500 mt-1">Unduh laporan harian pertumbuhan dan kondisi lingkungan</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
+                        <!-- Time Interval Selector -->
+                        <div class="bg-gray-50 border border-gray-100 rounded-xl p-1 flex items-center shadow-inner">
+                            <button class="interval-btn px-4 py-1.5 rounded-lg text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors" data-interval="1h">1 Jam</button>
+                            <button class="interval-btn px-4 py-1.5 rounded-lg text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors" data-interval="6h">6 Jam</button>
+                            <button class="interval-btn px-4 py-1.5 rounded-lg text-sm font-bold bg-secondary-500 text-white shadow-sm transition-colors" data-interval="24h">24 Jam</button>
+                            <button class="interval-btn px-4 py-1.5 rounded-lg text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors" data-interval="7d">7 Hari</button>
+                        </div>
+                        <button onclick="downloadExcel()" class="flex-1 sm:flex-none bg-green-500 hover:bg-green-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 shadow-sm">
+                            <i class="fa-solid fa-file-excel"></i> Excel
+                        </button>
+                        <button onclick="downloadPDF()" class="flex-1 sm:flex-none bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 shadow-sm">
+                            <i class="fa-solid fa-file-pdf"></i> PDF
+                        </button>
+                    </div>
+                </header>
+
+                <section class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col p-1">
+                    <div id="laporan-container" class="overflow-x-auto rounded-xl">
+                        <table id="laporan-table" class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-50 text-gray-600 border-b border-gray-100 text-xs font-extrabold tracking-wider uppercase">
+                                    <th class="py-4 px-5">Waktu</th>
+                                    <th class="py-4 px-5">pH</th>
+                                    <th class="py-4 px-5">TDS (ppm)</th>
+                                    <th class="py-4 px-5">Kondisi AI</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm font-medium text-gray-700 divide-y divide-gray-50" id="table-body">
+                                <!-- Data rows will go here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                
+            </div>
+        </main>
+    </div>
+    
+    <!-- Initialize App Scripts for Mobile Nav and Auth -->
+    <script type="module" src="app.js"></script>
+    
+    <script>
+        // Handle Time Interval Selection
+        document.addEventListener('DOMContentLoaded', () => {
+            const btns = document.querySelectorAll('.interval-btn');
+            const tbody = document.getElementById('table-body');
+            
+            btns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    // Reset all buttons
+                    btns.forEach(b => {
+                        b.className = 'interval-btn px-4 py-1.5 rounded-lg text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors';
+                    });
+                    
+                    // Set active button
+                    const clicked = e.target;
+                    clicked.className = 'interval-btn px-4 py-1.5 rounded-lg text-sm font-bold bg-secondary-500 text-white shadow-sm transition-colors';
+                    
+                    // Table empty state logic
+                    const interval = clicked.getAttribute('data-interval');
+                    if (interval !== '24h') {
+                        tbody.innerHTML = `<tr><td colspan="6" class="py-10 text-center text-gray-400 font-medium italic">Riwayat data belum tersedia untuk interval ${clicked.innerText}</td></tr>`;
+                    } else {
+                        // Clear to allow real-time data to show, or show waiting message if empty
+                        if(tbody.children.length === 0 || (tbody.children.length === 1 && tbody.innerHTML.includes('Riwayat data belum tersedia'))) {
+                            tbody.innerHTML = `<tr><td colspan="6" class="py-10 text-center text-gray-400 font-medium italic">Menunggu data real-time...</td></tr>`;
+                        }
+                    }
+                });
+            });
+        });
+
+        // Export Functions
+        function downloadExcel() {
+            const table = document.getElementById("laporan-table");
+            const wb = XLSX.utils.table_to_book(table, {sheet: "Laporan Pakcoy"});
+            XLSX.writeFile(wb, "Laporan_Aeroponik_Pakcoy.xlsx");
+        }
+
+        function downloadPDF() {
+            const element = document.getElementById("laporan-container");
+            const opt = {
+                margin:       0.5,
+                filename:     'Laporan_Aeroponik_Pakcoy.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
+            };
+            html2pdf().set(opt).from(element).save();
+        }
+    </script>
+</body>
+</html>
