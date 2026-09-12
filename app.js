@@ -13,8 +13,8 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+export const app = initializeApp(firebaseConfig);
+export const db = getDatabase(app);
 
 // --- Chart.js Setup for Combined Chart ---
 const maxDataPoints = 15;
@@ -48,18 +48,22 @@ const commonOptions = {
     }
 };
 
-const ctxMain = document.getElementById('mainChart').getContext('2d');
-const mainChart = new Chart(ctxMain, {
-    type: 'line',
-    data: {
-        labels: [],
-        datasets: [
-            { label: 'CO₂ / TDS (ppm)', data: [], borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', borderWidth: 2, tension: 0.4, pointRadius: 0, yAxisID: 'y1' },
-            { label: 'pH', data: [], borderColor: '#c084fc', backgroundColor: 'rgba(192, 132, 252, 0.1)', borderWidth: 2, tension: 0.4, pointRadius: 0, yAxisID: 'y' }
-        ]
-    },
-    options: commonOptions
-});
+const mainChartEl = document.getElementById('mainChart');
+let mainChart = null;
+if (mainChartEl) {
+    const ctxMain = mainChartEl.getContext('2d');
+    mainChart = new Chart(ctxMain, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                { label: 'CO₂ / TDS (ppm)', data: [], borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', borderWidth: 2, tension: 0.4, pointRadius: 0, yAxisID: 'y1' },
+                { label: 'pH', data: [], borderColor: '#c084fc', backgroundColor: 'rgba(192, 132, 252, 0.1)', borderWidth: 2, tension: 0.4, pointRadius: 0, yAxisID: 'y' }
+            ]
+        },
+        options: commonOptions
+    });
+}
 
 // --- Date Picker Logic ---
 const dateFilter = document.getElementById('chart-date-filter');
@@ -354,7 +358,7 @@ toggles.forEach(t => {
         }
     });
 
-    el.addEventListener('change', (e) => {
+    el?.addEventListener('change', (e) => {
         set(ref(db, t.path), e.target.checked)
             .catch((error) => console.error(`Error updating ${t.path}:`, error));
     });
@@ -443,3 +447,15 @@ function closeSidebar() {
 if (btnOpenSidebar) btnOpenSidebar.addEventListener('click', openSidebar);
 if (btnCloseSidebar) btnCloseSidebar.addEventListener('click', closeSidebar);
 if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
+
+// --- Global API URL Listener ---
+window.YOLO_API_URL = null;
+onValue(ref(db, 'config/api_url'), (snapshot) => {
+    const url = snapshot.val();
+    if (url) {
+        window.YOLO_API_URL = url;
+        console.log("Updated YOLO API URL from RTDB:", url);
+        // Dispatch an event so other scripts can react if needed
+        window.dispatchEvent(new CustomEvent('yoloUrlUpdated', { detail: url }));
+    }
+});

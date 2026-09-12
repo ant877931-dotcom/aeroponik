@@ -1,0 +1,24 @@
+# Procfile
+# ─────────────────────────────────────────────────────────────────────────────
+# Used by: Render, Railway, Heroku, and any Procfile-aware PaaS.
+#
+# --workers 1
+#   Single Uvicorn worker. The YOLOv8 model is loaded into one process;
+#   multiple workers would each load a separate copy, wasting memory.
+#   Scale horizontally (multiple Render instances) instead of vertically.
+#
+# --loop uvloop
+#   Faster async event loop (installed via uvicorn[standard]).
+#
+# --http httptools
+#   Faster HTTP/1.1 parser (installed via uvicorn[standard]).
+#
+# --host 0.0.0.0
+#   Required for containerised or virtualised environments so the server
+#   listens on all interfaces, not just localhost.
+#
+# --port $PORT
+#   PaaS platforms inject a dynamic PORT environment variable.
+#   Render, Railway, and Heroku all set this automatically.
+# ─────────────────────────────────────────────────────────────────────────────
+web: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1 --loop uvloop --http httptools --log-level info

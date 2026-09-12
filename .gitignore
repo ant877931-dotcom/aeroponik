@@ -1,0 +1,22 @@
+# Credentials & Secrets
+serviceAccountKey.json
+.env
+
+# Python
+__pycache__/
+*.pyc
+
+# ML Models
+*.pt
+
+# Security / Testing Scripts
+*redis_race_condition*
+*ml_async_blind_spot*
+*mimicry_attack*
+tests/
+test_*.py
+*payload*
+
+# OS / Editor
+.vscode/
+.DS_Store

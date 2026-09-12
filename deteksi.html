@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Deteksi Penyakit – Pakcoy Smart Farming</title>
+    <meta name="description" content="Deteksi penyakit dan kesehatan tanaman Pakcoy menggunakan AI YOLOv8. Upload foto tanaman untuk analisis instan.">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Shared CSS -->
+    <link rel="stylesheet" href="style.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary:   { 50:'#eff6ff',100:'#dbeafe',200:'#bfdbfe',400:'#60a5fa',500:'#3b82f6',600:'#2563eb',700:'#1d4ed8' },
+                        secondary: { 50:'#f0fdf4',100:'#dcfce7',200:'#bbf7d0',400:'#4ade80',500:'#22c55e',600:'#16a34a',700:'#15803d' }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+
+        /* ── Drop-zone ──────────────────────────────── */
+        #drop-zone {
+            border: 2.5px dashed #cbd5e1;
+            transition: border-color .25s, background .25s, transform .2s;
+        }
+        #drop-zone.drag-over {
+            border-color: #22c55e;
+            background: #f0fdf4;
+            transform: scale(1.01);
+        }
+
+        /* ── Upload progress bar ────────────────────── */
+        @keyframes progress-stripe {
+            0%   { background-position: 0 0; }
+            100% { background-position: 40px 0; }
+        }
+        .progress-bar-animated {
+            background-image: linear-gradient(
+                45deg,
+                rgba(255,255,255,.2) 25%, transparent 25%,
+                transparent 50%, rgba(255,255,255,.2) 50%,
+                rgba(255,255,255,.2) 75%, transparent 75%, transparent
+            );
+            background-size: 40px 40px;
+            animation: progress-stripe .8s linear infinite;
+        }
+
+        /* ── Pulse ring on analysing icon ───────────── */
+        @keyframes ping-slow {
+            75%, 100% { transform: scale(1.6); opacity: 0; }
+        }
+        .ping-slow { animation: ping-slow 1.4s cubic-bezier(0,0,.2,1) infinite; }
+
+        /* ── Result card slide-in ───────────────────── */
+        @keyframes slide-up {
+            from { opacity:0; transform:translateY(20px); }
+            to   { opacity:1; transform:translateY(0);    }
+        }
+        .slide-up { animation: slide-up .4s ease forwards; }
+
+        /* ── Badge shimmer ──────────────────────────── */
+        @keyframes shimmer {
+            0%   { background-position: -200% center; }
+            100% { background-position:  200% center; }
+        }
+        .badge-shimmer {
+            background: linear-gradient(90deg, #bbf7d0 25%, #dcfce7 50%, #bbf7d0 75%);
+            background-size: 200% auto;
+            animation: shimmer 2s linear infinite;
+        }
+
+        /* ── History table row hover ────────────────── */
+        .history-row { transition: background .15s; }
+        .history-row:hover { background: #f8fafc; }
+
+        /* scrollbar */
+        ::-webkit-scrollbar { width:6px; }
+        ::-webkit-scrollbar-track { background:transparent; }
+        ::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:4px; }
+        ::-webkit-scrollbar-thumb:hover { background:#94a3b8; }
+    </style>
+</head>
+
+<body class="text-gray-800 antialiased min-h-screen relative overflow-hidden flex bg-slate-50">
+
+<!-- ═══════════════════════════════════════════════
+     SIDEBAR  (identical to index.html pattern)
+════════════════════════════════════════════════ -->
+<div id="sidebar-overlay"
+     class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-30 hidden lg:hidden transition-opacity duration-300 opacity-0 pointer-events-none">
+</div>
+
+<aside id="sidebar"
+       class="fixed lg:static inset-y-0 left-0 z-40 w-72 bg-white border-r border-gray-100 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col h-screen overflow-y-auto shadow-xl lg:shadow-none">
+
+    <!-- Logo -->
+    <div class="p-6 flex items-center gap-3">
+        <div class="bg-secondary-600 p-2.5 rounded-xl shadow-sm">
+            <i class="fa-solid fa-leaf text-white text-xl"></i>
+        </div>
+        <div>
+            <h1 class="text-xl font-extrabold tracking-tight text-gray-800">Pakcoy</h1>
+            <p class="text-xs font-medium text-gray-500">Smart Farming</p>
+        </div>
+        <button id="btn-close-sidebar"
+                class="ml-auto lg:hidden w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200 transition-colors">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+
+    <!-- Nav -->
+    <nav class="flex-1 px-4 space-y-1 mt-2">
+        <a href="index.html"
+           class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-800 font-medium transition-all">
+            <i class="fa-solid fa-house w-5 text-center text-[15px]"></i>
+            <span class="text-sm">Beranda</span>
+        </a>
+        <a href="index.html#monitoring"
+           class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-800 font-medium transition-all">
+            <i class="fa-solid fa-chart-line w-5 text-center text-[15px]"></i>
+            <span class="text-sm">Monitoring</span>
+        </a>
+        <a href="index.html#citra"
+           class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-800 font-medium transition-all">
+            <i class="fa-solid fa-seedling w-5 text-center text-[15px]"></i>
+            <span class="text-sm">Citra Tanaman</span>
+        </a>
+
+        <!-- ACTIVE: AI Detection -->
+        <a href="deteksi.html"
+           class="nav-item active flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary-50 text-secondary-600 font-bold transition-all relative overflow-hidden group">
+            <div class="absolute left-0 top-0 bottom-0 w-1 bg-secondary-500 rounded-r-md"></div>
+            <i class="fa-solid fa-microscope w-5 text-center text-[15px]"></i>
+            <span class="text-sm">Deteksi AI</span>
+            <span class="ml-auto text-[10px] font-black bg-secondary-500 text-white px-1.5 py-0.5 rounded-full">NEW</span>
+        </a>
+
+        <a href="notifikasi.html"
+           class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-800 font-medium transition-all">
+            <i class="fa-regular fa-bell w-5 text-center text-[15px]"></i>
+            <span class="text-sm">Notifikasi</span>
+        </a>
+        <a href="laporan.html"
+           class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-800 font-medium transition-all">
+            <i class="fa-regular fa-file-lines w-5 text-center text-[15px]"></i>
+            <span class="text-sm">Laporan</span>
+        </a>
+    </nav>
+
+    <!-- Sidebar widget: API status -->
+    <div class="px-4 pb-6 mt-4">
+        <div class="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+            <h3 class="text-xs font-bold text-gray-700 mb-3">Status API</h3>
+            <div class="flex items-center gap-2 mb-2">
+                <span id="api-dot" class="relative flex h-2.5 w-2.5 shrink-0">
+                    <span id="api-dot-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                    <span id="api-dot-core" class="relative inline-flex rounded-full h-2.5 w-2.5 bg-yellow-400"></span>
+                </span>
+                <span id="api-status-text" class="text-[12px] font-bold text-yellow-600">Memeriksa koneksi…</span>
+            </div>
+            <p id="api-url-label" class="text-[10px] text-gray-400 truncate font-mono"></p>
+        </div>
+    </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════════
+     MAIN CONTENT
+════════════════════════════════════════════════ -->
+<div class="flex-1 flex flex-col h-screen overflow-hidden relative">
+
+    <!-- Ambient blobs -->
+    <div class="absolute inset-0 z-[-1] overflow-hidden pointer-events-none">
+        <div class="absolute top-0 right-0 -mr-24 -mt-24 w-96 h-96 rounded-full bg-primary-100 opacity-40 blur-3xl"></div>
+        <div class="absolute bottom-0 left-0 -ml-24 -mb-24 w-96 h-96 rounded-full bg-secondary-100 opacity-40 blur-3xl"></div>
+    </div>
+
+    <!-- Mobile topbar -->
+    <div class="lg:hidden bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-3 flex items-center justify-between z-20">
+        <div class="flex items-center gap-3">
+            <div class="bg-gradient-to-br from-primary-500 to-secondary-500 p-2 rounded-lg shadow-md">
+                <i class="fa-solid fa-leaf text-white text-sm"></i>
+            </div>
+            <h1 class="text-lg font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-primary-700 to-secondary-600">Pakcoy</h1>
+        </div>
+        <button id="btn-open-sidebar"
+                class="w-10 h-10 rounded-xl bg-gray-50 text-gray-600 border border-gray-200 flex items-center justify-center hover:bg-gray-100 transition-colors">
+            <i class="fa-solid fa-bars text-lg"></i>
+        </button>
+    </div>
+
+    <!-- Scrollable content -->
+    <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <div class="max-w-[1200px] mx-auto space-y-6">
+
+            <!-- ── Page Header ── -->
+            <header class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <div class="bg-secondary-100 p-1.5 rounded-lg">
+                            <i class="fa-solid fa-microscope text-secondary-600 text-sm"></i>
+                        </div>
+                        <span class="text-xs font-bold text-secondary-600 uppercase tracking-widest">AI Vision</span>
+                    </div>
+                    <h1 class="text-xl font-extrabold tracking-tight text-gray-800">Deteksi Penyakit Tanaman</h1>
+                    <p class="text-xs font-medium text-gray-500 mt-0.5">Upload foto tanaman Pakcoy untuk analisis kesehatan menggunakan model YOLOv8</p>
+                </div>
+                <div class="flex items-center gap-2 text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl shrink-0">
+                    <i class="fa-solid fa-robot text-secondary-500"></i>
+                    YOLOv8 Custom Model
+                </div>
+            </header>
+
+            <!-- ── Two-column layout ── -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                <!-- ─── LEFT: Upload Panel ─── -->
+                <div class="space-y-5">
+
+                    <!-- API URL Configurator -->
+                    <div class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider">
+                                <i class="fa-solid fa-link text-secondary-500 mr-1"></i>
+                                URL API Backend
+                            </label>
+                            <div class="flex items-center gap-1.5">
+                                <span class="relative flex h-2.5 w-2.5">
+                                    <span id="api-live-ping" class="absolute inline-flex h-full w-full rounded-full bg-gray-400 opacity-75"></span>
+                                    <span id="api-live-dot" class="relative inline-flex rounded-full h-2.5 w-2.5 bg-gray-400"></span>
+                                </span>
+                                <span id="api-live-text" class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Menunggu</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div id="api-url-display" class="flex-1 text-sm px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-500 font-mono truncate select-all">
+                                Menunggu konfigurasi otomatis...
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-gray-400 mt-2">URL didapatkan secara otomatis dan real-time dari sistem Jembatan Cloudflare.</p>
+                    </div>
+
+                    <!-- Drop zone -->
+                    <div class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                        <p class="text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
+                            <i class="fa-solid fa-upload text-secondary-500 mr-1"></i>
+                            Upload Gambar Tanaman
+                        </p>
+
+                        <!-- The drop area -->
+                        <div id="drop-zone"
+                             class="rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer bg-gray-50 min-h-[220px] relative select-none"
+                             role="button"
+                             aria-label="Upload area – klik atau seret gambar ke sini">
+
+                            <!-- Default state icon -->
+                            <div id="dz-icon" class="mb-4">
+                                <div class="w-16 h-16 rounded-2xl bg-secondary-50 flex items-center justify-center mx-auto shadow-sm">
+                                    <i class="fa-solid fa-image text-3xl text-secondary-400"></i>
+                                </div>
+                            </div>
+                            <p id="dz-title" class="text-sm font-bold text-gray-700">Seret foto ke sini</p>
+                            <p id="dz-sub" class="text-xs text-gray-400 mt-1">atau <span class="text-secondary-600 font-semibold underline decoration-dotted">klik untuk memilih</span></p>
+                            <p class="text-[11px] text-gray-400 mt-3 font-medium">PNG, JPEG — Maks. 20 MB</p>
+
+                            <!-- Hidden file input -->
+                            <input id="file-input" type="file" accept=".jpg,.jpeg,.png" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+                        </div>
+
+                        <!-- Preview (hidden until file chosen) -->
+                        <div id="preview-box" class="mt-4 hidden">
+                            <div class="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                                <img id="preview-img" src="" alt="Preview gambar tanaman"
+                                     class="w-full max-h-56 object-contain">
+                                <button id="btn-clear"
+                                        class="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 backdrop-blur-sm border border-gray-200 text-gray-500 hover:text-red-500 hover:border-red-300 flex items-center justify-center text-xs transition-colors shadow-sm"
+                                        title="Hapus gambar">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <div class="mt-2 flex items-center justify-between text-[11px] text-gray-400 font-medium px-1">
+                                <span id="file-name-label" class="truncate max-w-[70%]"></span>
+                                <span id="file-size-label"></span>
+                            </div>
+                        </div>
+
+                        <!-- Analyse button -->
+                        <button id="btn-analyse"
+                                disabled
+                                class="mt-4 w-full bg-secondary-600 hover:bg-secondary-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-sm shadow-sm">
+                            <i class="fa-solid fa-magnifying-glass-chart"></i>
+                            Analisis Sekarang
+                        </button>
+                    </div>
+
+                    <!-- Accepted formats info -->
+                    <div class="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex gap-3 text-xs text-blue-700">
+                        <i class="fa-solid fa-circle-info text-blue-400 mt-0.5 shrink-0"></i>
+                        <div>
+                            <p class="font-bold mb-0.5">Format yang diterima</p>
+                            <p class="leading-relaxed text-blue-600">
+                                <strong>JPEG (.jpg, .jpeg)</strong> dan <strong>PNG (.png)</strong>. File akan divalidasi secara ketat sebelum diproses untuk mencegah file berbahaya.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ─── RIGHT: Result Panel ─── -->
+                <div class="space-y-5">
+
+                    <!-- Result card -->
+                    <div class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm min-h-[320px] flex flex-col">
+                        <p class="text-xs font-bold text-gray-600 uppercase tracking-wider mb-4">
+                            <i class="fa-solid fa-chart-bar text-secondary-500 mr-1"></i>
+                            Hasil Deteksi
+                        </p>
+
+                        <!-- Empty state -->
+                        <div id="result-empty" class="flex-1 flex flex-col items-center justify-center text-center py-8">
+                            <div class="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
+                                <i class="fa-regular fa-image text-2xl text-gray-300"></i>
+                            </div>
+                            <p class="text-sm font-bold text-gray-400">Belum ada analisis</p>
+                            <p class="text-[11px] text-gray-300 mt-1">Upload gambar lalu klik <em>Analisis Sekarang</em></p>
+                        </div>
+
+                        <!-- Loading state -->
+                        <div id="result-loading" class="hidden flex-1 flex flex-col items-center justify-center gap-4 py-8">
+                            <div class="relative w-16 h-16">
+                                <span class="ping-slow absolute inline-flex h-full w-full rounded-full bg-secondary-300 opacity-60"></span>
+                                <div class="relative w-16 h-16 rounded-2xl bg-secondary-100 flex items-center justify-center">
+                                    <i class="fa-solid fa-robot text-2xl text-secondary-500"></i>
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-sm font-bold text-gray-700">Sedang menganalisis…</p>
+                                <p class="text-[11px] text-gray-400 mt-1">Model AI sedang memproses gambar Anda</p>
+                            </div>
+                            <!-- Progress bar -->
+                            <div class="w-full max-w-xs bg-gray-100 rounded-full h-2 overflow-hidden">
+                                <div id="progress-bar" class="progress-bar-animated h-2 bg-secondary-500 rounded-full w-0 transition-all duration-700"></div>
+                            </div>
+                        </div>
+
+                        <!-- Error state -->
+                        <div id="result-error" class="hidden flex-1 flex flex-col items-center justify-center gap-3 py-8">
+                            <div class="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center">
+                                <i class="fa-solid fa-triangle-exclamation text-2xl text-red-400"></i>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-sm font-bold text-red-600">Gagal terhubung ke API</p>
+                                <p id="error-msg" class="text-[11px] text-gray-400 mt-1 max-w-xs"></p>
+                            </div>
+                            <button id="btn-retry"
+                                    class="text-xs font-bold text-secondary-600 border border-secondary-200 hover:bg-secondary-50 px-4 py-2 rounded-xl transition-colors">
+                                <i class="fa-solid fa-rotate-right mr-1"></i> Coba Lagi
+                            </button>
+                        </div>
+
+                        <!-- Success state -->
+                        <div id="result-success" class="hidden flex-1 flex flex-col gap-4 slide-up">
+
+                            <!-- Health banner -->
+                            <div id="health-banner" class="rounded-xl p-4 flex items-center gap-3">
+                                <div id="health-icon-wrap" class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0">
+                                    <i id="health-icon" class="text-2xl"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold uppercase tracking-wide" id="health-status-label"></p>
+                                    <p class="text-[11px] mt-0.5 font-medium" id="health-status-sub"></p>
+                                </div>
+                                <div class="ml-auto text-right">
+                                    <p class="text-[10px] text-gray-400 font-medium">Waktu analisis</p>
+                                    <p id="inference-time" class="text-sm font-black text-gray-700"></p>
+                                </div>
+                            </div>
+
+                            <!-- Detected classes -->
+                            <div>
+                                <p class="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Kelas Terdeteksi</p>
+                                <div id="class-tags" class="flex flex-wrap gap-2"></div>
+                            </div>
+
+                            <!-- Detections table -->
+                            <div id="detections-wrap">
+                                <p class="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Detail Deteksi</p>
+                                <div class="rounded-xl border border-gray-100 overflow-hidden">
+                                    <table class="w-full text-xs">
+                                        <thead>
+                                            <tr class="bg-gray-50 border-b border-gray-100">
+                                                <th class="text-left px-3 py-2.5 font-bold text-gray-500">#</th>
+                                                <th class="text-left px-3 py-2.5 font-bold text-gray-500">Label</th>
+                                                <th class="text-right px-3 py-2.5 font-bold text-gray-500">Confidence</th>
+                                                <th class="text-right px-3 py-2.5 font-bold text-gray-500">Bar</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="detections-tbody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- No detections note -->
+                            <div id="no-detection-note" class="hidden rounded-xl bg-yellow-50 border border-yellow-100 p-4 flex items-start gap-3">
+                                <i class="fa-solid fa-triangle-exclamation text-yellow-400 mt-0.5 shrink-0"></i>
+                                <div>
+                                    <p class="text-xs font-bold text-yellow-700">Tidak ada objek terdeteksi</p>
+                                    <p class="text-[11px] text-yellow-600 mt-0.5">Coba foto dari jarak lebih dekat dengan pencahayaan yang baik.</p>
+                                </div>
+                            </div>
+
+                            <!-- Disease Classification Card -->
+                            <div id="disease-card" class="hidden rounded-xl border p-4 space-y-3"></div>
+                        </div>
+                    </div>
+
+                    <!-- Quick info cards -->
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center">
+                            <div class="w-9 h-9 rounded-xl bg-secondary-50 flex items-center justify-center mx-auto mb-2">
+                                <i class="fa-solid fa-shield-halved text-secondary-500 text-sm"></i>
+                            </div>
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Validasi</p>
+                            <p class="text-xs font-bold text-gray-700 mt-0.5">3-layer guard</p>
+                        </div>
+                        <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center">
+                            <div class="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center mx-auto mb-2">
+                                <i class="fa-solid fa-bolt text-blue-400 text-sm"></i>
+                            </div>
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Engine</p>
+                            <p class="text-xs font-bold text-gray-700 mt-0.5">YOLOv8</p>
+                        </div>
+                        <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center">
+                            <div class="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center mx-auto mb-2">
+                                <i class="fa-solid fa-database text-purple-400 text-sm"></i>
+                            </div>
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Riwayat</p>
+                            <p id="history-count-badge" class="text-xs font-bold text-gray-700 mt-0.5">0 scan</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Scan History Table ── -->
+            <section class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                            <i class="fa-solid fa-clock-rotate-left text-secondary-500 mr-1"></i>
+                            Riwayat Scan
+                        </p>
+                        <p class="text-[11px] text-gray-400 mt-0.5">Disimpan di sesi ini (terhapus saat halaman ditutup)</p>
+                    </div>
+                    <button id="btn-clear-history"
+                            class="text-[11px] font-bold text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1">
+                        <i class="fa-solid fa-trash-can"></i> Hapus Semua
+                    </button>
+                </div>
+
+                <!-- History table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs min-w-[600px]">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-100">
+                                <th class="text-left px-5 py-3 font-bold text-gray-400 uppercase tracking-wider">#</th>
+                                <th class="text-left px-5 py-3 font-bold text-gray-400 uppercase tracking-wider">Nama File</th>
+                                <th class="text-left px-5 py-3 font-bold text-gray-400 uppercase tracking-wider">Hasil</th>
+                                <th class="text-left px-5 py-3 font-bold text-gray-400 uppercase tracking-wider">Deteksi</th>
+                                <th class="text-right px-5 py-3 font-bold text-gray-400 uppercase tracking-wider">Waktu</th>
+                                <th class="text-right px-5 py-3 font-bold text-gray-400 uppercase tracking-wider">Durasi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-tbody">
+                            <tr id="history-empty-row">
+                                <td colspan="6" class="text-center py-10 text-gray-300 font-medium">
+                                    <i class="fa-regular fa-folder-open text-2xl mb-2 block"></i>
+                                    Belum ada riwayat scan
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </div><!-- /max-w -->
+    </main>
+</div><!-- /main wrapper -->
+
+<!-- ═══════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════════ -->
+<script type="module" src="app.js"></script>
+<script>
+/* ────────────────────────────────────────────────────────
+   CONFIG
+──────────────────────────────────────────────────────── */
+const DEFAULT_API = 'http://127.0.0.1:8000';
+const ENDPOINT    = '/deteksi';
+const HEALTH_EP   = '/health';
+
+const ALLOWED_TYPES = ['image/jpeg', 'image/png'];
+const ALLOWED_EXTS  = ['.jpg', '.jpeg', '.png'];
+const MAX_BYTES     = 20 * 1024 * 1024; // 20 MB
+
+/* ────────────────────────────────────────────────────────
+   STATE
+──────────────────────────────────────────────────────── */
+let selectedFile  = null;
+let apiBase       = window.YOLO_API_URL || localStorage.getItem('deteksi_api_url') || DEFAULT_API;
+let history       = [];   // scan history (session-only)
+let lastFile      = null; // kept for retry
+
+// Listen for dynamic updates from Firebase RTDB (in app.js)
+window.addEventListener('yoloUrlUpdated', (e) => {
+    console.log("deteksi.html received updated API URL:", e.detail);
+    applyApiUrl(e.detail);
+});
+
+/* ────────────────────────────────────────────────────────
+   ELEMENT REFS
+──────────────────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+
+const dropZone      = $('drop-zone');
+const fileInput     = $('file-input');
+const previewBox    = $('preview-box');
+const previewImg    = $('preview-img');
+const btnClear      = $('btn-clear');
+const btnAnalyse    = $('btn-analyse');
+const fileNameLbl   = $('file-name-label');
+const fileSizeLbl   = $('file-size-label');
+const dzTitle       = $('dz-title');
+const dzSub         = $('dz-sub');
+const dzIcon        = $('dz-icon');
+
+const apiUrlDisplay = $('api-url-display');
+const apiLivePing   = $('api-live-ping');
+const apiLiveDot    = $('api-live-dot');
+const apiLiveText   = $('api-live-text');
+
+const apiDotPing    = $('api-dot-ping');
+const apiDotCore    = $('api-dot-core');
+const apiStatusTxt  = $('api-status-text');
+const apiUrlLabel   = $('api-url-label');
+
+const resultEmpty   = $('result-empty');
+const resultLoading = $('result-loading');
+const resultError   = $('result-error');
+const resultSuccess = $('result-success');
+const errorMsg      = $('error-msg');
+const btnRetry      = $('btn-retry');
+const progressBar   = $('progress-bar');
+
+const healthBanner  = $('health-banner');
+const healthIconWrap= $('health-icon-wrap');
+const healthIcon    = $('health-icon');
+const healthLbl     = $('health-status-label');
+const healthSub     = $('health-status-sub');
+const inferTime     = $('inference-time');
+const classTags     = $('class-tags');
+const detTbody      = $('detections-tbody');
+const detWrap       = $('detections-wrap');
+const noDetNote     = $('no-detection-note');
+const histTbody     = $('history-tbody');
+const histEmptyRow  = $('history-empty-row');
+const histCountBdg  = $('history-count-badge');
+const btnClearHist  = $('btn-clear-history');
+
+/* ────────────────────────────────────────────────────────
+   SIDEBAR TOGGLE
+──────────────────────────────────────────────────────── */
+const sidebar        = $('sidebar');
+const sidebarOverlay = $('sidebar-overlay');
+const btnOpen        = $('btn-open-sidebar');
+const btnClose       = $('btn-close-sidebar');
+
+function openSidebar() {
+    sidebar.classList.remove('-translate-x-full');
+    sidebarOverlay.classList.remove('hidden','opacity-0','pointer-events-none');
+    setTimeout(()=>sidebarOverlay.classList.add('opacity-100'), 10);
+}
+function closeSidebar() {
+    sidebar.classList.add('-translate-x-full');
+    sidebarOverlay.classList.remove('opacity-100');
+    sidebarOverlay.classList.add('opacity-0','pointer-events-none');
+    setTimeout(()=>sidebarOverlay.classList.add('hidden'), 300);
+}
+btnOpen?.addEventListener('click', openSidebar);
+btnClose?.addEventListener('click', closeSidebar);
+sidebarOverlay?.addEventListener('click', closeSidebar);
+
+/* ────────────────────────────────────────────────────────
+   API URL MANAGEMENT
+──────────────────────────────────────────────────────── */
+function applyApiUrl(url) {
+    apiBase = url.replace(/\/$/, '');
+    localStorage.setItem('deteksi_api_url', apiBase);
+    if (apiUrlLabel) apiUrlLabel.textContent = apiBase + ENDPOINT;
+    
+    if (apiUrlDisplay) {
+        apiUrlDisplay.textContent = apiBase;
+        apiUrlDisplay.classList.replace('text-gray-500', 'text-secondary-700');
+        apiUrlDisplay.classList.replace('bg-gray-50', 'bg-secondary-50');
+        apiUrlDisplay.classList.replace('border-gray-200', 'border-secondary-200');
+    }
+    if (apiLivePing && apiLiveDot && apiLiveText) {
+        apiLivePing.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary-400 opacity-75";
+        apiLiveDot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-secondary-500";
+        apiLiveText.className = "text-[10px] font-bold text-secondary-600 uppercase tracking-wider";
+        apiLiveText.textContent = "Live Connection";
+    }
+
+    checkApiHealth();
+}
+
+if (apiBase !== DEFAULT_API && apiBase !== "http://127.0.0.1:8000") {
+    applyApiUrl(apiBase);
+} else {
+    apiUrlLabel.textContent = apiBase + ENDPOINT;
+}
+
+/* ────────────────────────────────────────────────────────
+   API HEALTH CHECK
+──────────────────────────────────────────────────────── */
+async function checkApiHealth() {
+    setApiStatus('checking');
+    try {
+        const r = await fetch(apiBase + HEALTH_EP, { signal: AbortSignal.timeout(5000) });
+        const d = await r.json();
+        if (r.ok && d.model_loaded) {
+            setApiStatus('online');
+        } else if (r.ok && !d.model_loaded) {
+            setApiStatus('degraded');
+        } else {
+            setApiStatus('offline');
+        }
+    } catch {
+        setApiStatus('offline');
+    }
+}
+
+function setApiStatus(s) {
+    const map = {
+        checking: { dot:'bg-yellow-400', text:'text-yellow-600', label:'Memeriksa koneksi…' },
+        online:   { dot:'bg-green-500',  text:'text-green-600',  label:'API Online & Model Siap ✓' },
+        degraded: { dot:'bg-orange-400', text:'text-orange-600', label:'API Online – Model belum siap' },
+        offline:  { dot:'bg-red-500',    text:'text-red-600',    label:'API Tidak Terjangkau' },
+    };
+    const m = map[s] || map.offline;
+    [apiDotPing, apiDotCore].forEach(el => {
+        el.className = el.className.replace(/bg-\w+-\d+/g,'');
+        el.classList.add(...m.dot.split(' '));
+    });
+    apiStatusTxt.className = 'text-[12px] font-bold ' + m.text;
+    apiStatusTxt.textContent = m.label;
+    if (s !== 'checking') apiDotPing.style.animationName = (s === 'online') ? 'ping' : 'none';
+}
+
+// Check health on load and every 30s
+checkApiHealth();
+setInterval(checkApiHealth, 30_000);
+
+/* ────────────────────────────────────────────────────────
+   FILE SELECTION & VALIDATION (client-side pre-check)
+──────────────────────────────────────────────────────── */
+function validateFile(file) {
+    if (!file) return 'Tidak ada file.';
+    const ext = '.' + file.name.split('.').pop().toLowerCase();
+    if (!ALLOWED_TYPES.includes(file.type) && !ALLOWED_EXTS.includes(ext))
+        return `Format tidak didukung: ${file.type || ext}. Gunakan JPG atau PNG.`;
+    if (file.size > MAX_BYTES)
+        return `File terlalu besar (${(file.size/1024/1024).toFixed(1)} MB). Maks. 20 MB.`;
+    return null; // OK
+}
+
+function handleFileSelected(file) {
+    const err = validateFile(file);
+    if (err) {
+        alert('⚠️  ' + err);
+        fileInput.value = '';
+        return;
+    }
+    selectedFile = file;
+    lastFile = file;
+
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = e => { previewImg.src = e.target.result; };
+    reader.readAsDataURL(file);
+
+    previewBox.classList.remove('hidden');
+    dzTitle.textContent = 'Gambar siap dianalisis';
+    dzSub.innerHTML = '';
+    dzIcon.innerHTML = '<i class="fa-solid fa-check-circle text-3xl text-secondary-500"></i>';
+    fileNameLbl.textContent = file.name;
+    fileSizeLbl.textContent = (file.size / 1024).toFixed(0) + ' KB';
+    btnAnalyse.disabled = false;
+
+    // Reset result panel
+    showState('empty');
+}
+
+fileInput.addEventListener('change', e => {
+    if (e.target.files[0]) handleFileSelected(e.target.files[0]);
+});
+
+// Drop zone drag-and-drop
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer?.files[0];
+    if (file) handleFileSelected(file);
+});
+
+// Clear button
+btnClear.addEventListener('click', e => {
+    e.stopPropagation();
+    e.preventDefault();
+    resetUpload();
+});
+
+function resetUpload() {
+    selectedFile = null;
+    fileInput.value = '';
+    previewBox.classList.add('hidden');
+    previewImg.src = '';
+    dzTitle.textContent = 'Seret foto ke sini';
+    dzSub.innerHTML = 'atau <span class="text-secondary-600 font-semibold underline decoration-dotted">klik untuk memilih</span>';
+    dzIcon.innerHTML = `<div class="w-16 h-16 rounded-2xl bg-secondary-50 flex items-center justify-center mx-auto shadow-sm">
+        <i class="fa-solid fa-image text-3xl text-secondary-400"></i></div>`;
+    btnAnalyse.disabled = true;
+    showState('empty');
+}
+
+/* ────────────────────────────────────────────────────────
+   RESULT STATE MACHINE
+──────────────────────────────────────────────────────── */
+function showState(state) {
+    resultEmpty.classList.add('hidden');
+    resultLoading.classList.add('hidden');
+    resultError.classList.add('hidden');
+    resultSuccess.classList.add('hidden');
+    $(`result-${state}`)?.classList.remove('hidden');
+    $(`result-${state}`)?.classList.add('flex');
+}
+
+/* ────────────────────────────────────────────────────────
+   INFERENCE (POST /deteksi)
+──────────────────────────────────────────────────────── */
+btnAnalyse.addEventListener('click', () => runInference(selectedFile));
+btnRetry.addEventListener('click', () => { if (lastFile) runInference(lastFile); });
+
+async function runInference(file) {
+    if (!file) return;
+
+    showState('loading');
+    btnAnalyse.disabled = true;
+
+    // Animate progress bar
+    let prog = 10;
+    progressBar.style.width = prog + '%';
+    const ticker = setInterval(() => {
+        prog = Math.min(prog + Math.random() * 12, 88);
+        progressBar.style.width = prog + '%';
+    }, 400);
+
+    const t0 = performance.now();
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const resp = await fetch(apiBase + ENDPOINT, {
+            method: 'POST',
+            body: formData,
+            signal: AbortSignal.timeout(60_000),
+        });
+
+        clearInterval(ticker);
+        progressBar.style.width = '100%';
+
+        if (!resp.ok) {
+            let detail = `HTTP ${resp.status}`;
+            try { detail = (await resp.json()).detail || detail; } catch {}
+            throw new Error(detail);
+        }
+
+        const data = await resp.json();
+        const wallMs = (performance.now() - t0).toFixed(0);
+
+        setTimeout(() => {
+            renderSuccess(data, wallMs);
+            addHistory(file.name, data, wallMs);
+        }, 300);
+
+    } catch (err) {
+        clearInterval(ticker);
+        progressBar.style.width = '0%';
+        showState('error');
+        errorMsg.textContent = err.message || 'Tidak dapat terhubung ke server API.';
+    } finally {
+        btnAnalyse.disabled = false;
+    }
+}
+
+/* ────────────────────────────────────────────────────────
+   DISEASE INFO MAP
+   Maps canonical YOLO labels → rich display info
+──────────────────────────────────────────────────────── */
+const DISEASE_INFO = {
+    pakcoy_sehat: {
+        name:        'Pakcoy Sehat',
+        severity:    'sehat',
+        severityTxt: 'Sehat',
+        icon:        'fa-solid fa-circle-check',
+        color:       'green',
+        description: 'Tanaman pakcoy terdeteksi dalam kondisi sehat. Daun hijau segar, tidak ada tanda-tanda infeksi jamur, bakteri, maupun hama.',
+        treatment:   [
+            'Pertahankan nutrisi larutan hidroponik (EC 1.5–2.5 mS/cm)',
+            'Jaga suhu air 18–24°C dan pH 5.5–6.5',
+            'Pastikan sirkulasi udara dan cahaya merata',
+            'Lakukan pemantauan rutin setiap 2 hari',
+        ],
+    },
+    pakcoy_tidak_sehat: {
+        name:        'Pakcoy Tidak Sehat',
+        severity:    'parah',
+        severityTxt: 'Perlu Tindakan',
+        icon:        'fa-solid fa-virus',
+        color:       'red',
+        description: 'Tanaman pakcoy terdeteksi mengalami gangguan kesehatan. Kemungkinan penyebab: defisiensi nutrisi, serangan jamur (downy mildew), atau stress lingkungan.',
+        treatment:   [
+            'Periksa dan sesuaikan pH larutan (target 5.5–6.5)',
+            'Cek konsentrasi nutrisi — tambah jika EC di bawah 1.2 mS/cm',
+            'Isolasi tanaman yang terinfeksi agar tidak menular',
+            'Semprot fungisida organik (neem oil) jika ada bercak jamur',
+            'Tingkatkan aerasi akar dan kurangi kelembaban berlebih',
+        ],
+    },
+    pakcoy: {
+        name:        'Pakcoy (Kondisi Belum Diketahui)',
+        severity:    'tidak_diketahui',
+        severityTxt: 'Perlu Model Terbaru',
+        icon:        'fa-solid fa-circle-question',
+        color:       'yellow',
+        description: 'Model saat ini hanya mendeteksi objek sebagai "pakcoy" tanpa membedakan kondisi sehat/sakit. Gunakan model yang dilatih dengan 2 kelas untuk hasil lebih akurat.',
+        treatment:   [
+            'Retrain model dengan dataset 2-kelas (pakcoy_sehat / pakcoy_tidak_sehat)',
+            'Sementara itu, lakukan pemeriksaan manual pada tanaman',
+            'Periksa warna daun: kuning/pucat = perlu perhatian ekstra',
+        ],
+    },
+};
+
+/* ────────────────────────────────────────────────────────
+   LABEL DISPLAY NAMES (human-readable Bahasa Indonesia)
+──────────────────────────────────────────────────────── */
+const LABEL_DISPLAY = {
+    pakcoy_sehat:       'Pakcoy Sehat',
+    pakcoy_tidak_sehat: 'Pakcoy Tidak Sehat',
+    pakcoy:             'Pakcoy',
+};
+function displayLabel(raw) {
+    return LABEL_DISPLAY[raw] || raw;
+}
+
+/* ────────────────────────────────────────────────────────
+   RENDER SUCCESS
+──────────────────────────────────────────────────────── */
+const LABEL_COLORS = [
+    'bg-green-100 text-green-700 border-green-200',
+    'bg-blue-100 text-blue-700 border-blue-200',
+    'bg-orange-100 text-orange-700 border-orange-200',
+    'bg-purple-100 text-purple-700 border-purple-200',
+    'bg-red-100 text-red-700 border-red-200',
+    'bg-yellow-100 text-yellow-700 border-yellow-200',
+    'bg-pink-100 text-pink-700 border-pink-200',
+];
+
+function labelColor(idx) { return LABEL_COLORS[idx % LABEL_COLORS.length]; }
+
+function isHealthy(classes) {
+    return classes.some(c => /sehat/i.test(c) && !/tidak/i.test(c));
+}
+
+function renderSuccess(data, wallMs) {
+    showState('success');
+
+    const detections = data.detections || [];
+    const classes    = data.detected_classes || [];
+
+    // ── Health banner
+    if (classes.length === 0) {
+        healthBanner.className = 'rounded-xl p-4 flex items-center gap-3 bg-yellow-50 border border-yellow-100';
+        healthIconWrap.className = 'w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-yellow-100';
+        healthIcon.className = 'fa-solid fa-question text-2xl text-yellow-500';
+        healthLbl.className = 'text-xs font-bold uppercase tracking-wide text-yellow-700';
+        healthLbl.textContent = 'Tidak Terdeteksi';
+        healthSub.className = 'text-[11px] mt-0.5 font-medium text-yellow-600';
+        healthSub.textContent = 'Tidak ada objek yang terdeteksi dalam gambar.';
+    } else if (isHealthy(classes)) {
+        healthBanner.className = 'rounded-xl p-4 flex items-center gap-3 bg-green-50 border border-green-100';
+        healthIconWrap.className = 'w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-green-100';
+        healthIcon.className = 'fa-solid fa-circle-check text-2xl text-green-500';
+        healthLbl.className = 'text-xs font-bold uppercase tracking-wide text-green-700';
+        healthLbl.textContent = 'Tanaman Sehat';
+        healthSub.className = 'text-[11px] mt-0.5 font-medium text-green-600';
+        healthSub.textContent = 'Model AI mendeteksi tanaman dalam kondisi baik.';
+    } else {
+        healthBanner.className = 'rounded-xl p-4 flex items-center gap-3 bg-red-50 border border-red-100';
+        healthIconWrap.className = 'w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-red-100';
+        healthIcon.className = 'fa-solid fa-virus text-2xl text-red-500';
+        healthLbl.className = 'text-xs font-bold uppercase tracking-wide text-red-700';
+        healthLbl.textContent = 'Terdeteksi Penyakit';
+        healthSub.className = 'text-[11px] mt-0.5 font-medium text-red-600';
+        healthSub.textContent = classes.join(', ');
+    }
+
+    inferTime.textContent = (data.inference_time_ms ?? wallMs) + ' ms';
+
+    // ── Class tags
+    classTags.innerHTML = '';
+    if (classes.length === 0) {
+        classTags.innerHTML = '<span class="text-[11px] text-gray-300 font-medium">— tidak ada —</span>';
+    } else {
+        classes.forEach((cls, i) => {
+            const tag = document.createElement('span');
+            const isHealthCls = /sehat/i.test(cls) && !/tidak/i.test(cls);
+            const isSickCls   = /tidak_sehat|sakit/i.test(cls);
+            const tagClass = isHealthCls
+                ? 'bg-green-100 text-green-700 border-green-200'
+                : isSickCls
+                ? 'bg-red-100 text-red-700 border-red-200'
+                : 'bg-yellow-100 text-yellow-700 border-yellow-200';
+            tag.className = `inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border ${tagClass}`;
+            tag.innerHTML = `<i class="fa-solid fa-tag text-[9px]"></i> ${escHtml(displayLabel(cls))}`;
+            classTags.appendChild(tag);
+        });
+    }
+
+    // ── Detections table
+    if (detections.length === 0) {
+        detWrap.classList.add('hidden');
+        noDetNote.classList.remove('hidden');
+    } else {
+        detWrap.classList.remove('hidden');
+        noDetNote.classList.add('hidden');
+        detTbody.innerHTML = detections.map((d, i) => {
+            const pct = Math.round(d.confidence * 100);
+            const barColor = pct >= 80 ? 'bg-green-500' : pct >= 50 ? 'bg-yellow-400' : 'bg-red-400';
+            const isHealthRow = /sehat/i.test(d.label) && !/tidak/i.test(d.label);
+            const isSickRow   = /tidak_sehat|sakit/i.test(d.label);
+            const labelBadge  = isHealthRow
+                ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-green-50 text-green-600 border border-green-100">Sehat</span>`
+                : isSickRow
+                ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-red-50 text-red-600 border border-red-100">Tidak Sehat</span>`
+                : `<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-yellow-50 text-yellow-600 border border-yellow-100">—</span>`;
+            return `<tr class="history-row border-b border-gray-50 last:border-0">
+                <td class="px-3 py-2.5 font-bold text-gray-300">${i+1}</td>
+                <td class="px-3 py-2.5">
+                    <div class="font-bold text-gray-700 text-[11px]">${escHtml(displayLabel(d.label))}</div>
+                    <div class="mt-0.5">${labelBadge}</div>
+                </td>
+                <td class="px-3 py-2.5 text-right font-black ${pct>=70?'text-green-600':'text-orange-500'}">${pct}%</td>
+                <td class="px-3 py-2.5 text-right w-24">
+                    <div class="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                        <div class="h-full rounded-full ${barColor} transition-all duration-700" style="width:${pct}%"></div>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    // ── Disease classification card
+    const diseaseCard = document.getElementById('disease-card');
+    // Pick the most severe detected class to show info for
+    const priority = ['pakcoy_tidak_sehat', 'pakcoy', 'pakcoy_sehat'];
+    const topClass  = priority.find(c => classes.includes(c)) || classes[0];
+    const info      = topClass ? DISEASE_INFO[topClass] : null;
+
+    if (info) {
+        const colorMap = {
+            green:  { border: 'border-green-100',  bg: 'bg-green-50',  icon: 'text-green-500',  title: 'text-green-800',  badge: 'bg-green-100 text-green-700 border-green-200',  bullet: 'bg-green-400' },
+            red:    { border: 'border-red-100',    bg: 'bg-red-50',    icon: 'text-red-500',    title: 'text-red-800',    badge: 'bg-red-100 text-red-700 border-red-200',          bullet: 'bg-red-400' },
+            yellow: { border: 'border-yellow-100', bg: 'bg-yellow-50', icon: 'text-yellow-500', title: 'text-yellow-800', badge: 'bg-yellow-100 text-yellow-700 border-yellow-200', bullet: 'bg-yellow-400' },
+        };
+        const c = colorMap[info.color] || colorMap.yellow;
+        const treatmentItems = info.treatment.map(t =>
+            `<li class="flex items-start gap-2">
+                <span class="w-1.5 h-1.5 rounded-full ${c.bullet} mt-1.5 shrink-0"></span>
+                <span>${escHtml(t)}</span>
+            </li>`
+        ).join('');
+
+        diseaseCard.className = `rounded-xl border ${c.border} ${c.bg} p-4 space-y-3`;
+        diseaseCard.innerHTML = `
+            <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-xl ${c.bg} border ${c.border} flex items-center justify-center shrink-0">
+                    <i class="${info.icon} text-lg ${c.icon}"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <p class="text-sm font-black ${c.title}">${escHtml(info.name)}</p>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black border ${c.badge}">${escHtml(info.severityTxt)}</span>
+                    </div>
+                    <p class="text-[11px] mt-1 text-gray-600 leading-relaxed">${escHtml(info.description)}</p>
+                </div>
+            </div>
+            <div>
+                <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">
+                    <i class="fa-solid fa-kit-medical mr-1"></i>Rekomendasi Tindakan
+                </p>
+                <ul class="space-y-1.5 text-[11px] text-gray-700">${treatmentItems}</ul>
+            </div>`;
+        diseaseCard.classList.remove('hidden');
+    } else {
+        diseaseCard.classList.add('hidden');
+    }
+}
+
+/* ────────────────────────────────────────────────────────
+   SCAN HISTORY
+──────────────────────────────────────────────────────── */
+function addHistory(filename, data, wallMs) {
+    const now = new Date().toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const entry = {
+        no: history.length + 1,
+        filename,
+        classes: (data.detected_classes || []).join(', ') || '—',
+        count: data.count ?? 0,
+        time: now,
+        duration: (data.inference_time_ms ?? wallMs) + ' ms',
+        healthy: isHealthy(data.detected_classes || []),
+        empty: (data.count ?? 0) === 0,
+    };
+    history.unshift(entry);
+    renderHistory();
+}
+
+function renderHistory() {
+    histEmptyRow.style.display = history.length ? 'none' : '';
+    histCountBdg.textContent = history.length + ' scan';
+
+    // Remove old rows (keep empty placeholder)
+    [...histTbody.querySelectorAll('.hist-row')].forEach(r => r.remove());
+
+    history.forEach(e => {
+        const tr = document.createElement('tr');
+        tr.className = 'hist-row history-row border-b border-gray-50 last:border-0 text-xs';
+
+        const statusBadge = e.empty
+            ? `<span class="px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-600 border border-yellow-100 font-bold text-[10px]">Kosong</span>`
+            : e.healthy
+            ? `<span class="px-2 py-0.5 rounded-full bg-green-50 text-green-600 border border-green-100 font-bold text-[10px]">Sehat</span>`
+            : `<span class="px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-100 font-bold text-[10px]">Penyakit</span>`;
+
+        tr.innerHTML = `
+            <td class="px-5 py-3 font-bold text-gray-300">${e.no}</td>
+            <td class="px-5 py-3 font-medium text-gray-700 max-w-[160px] truncate" title="${escHtml(e.filename)}">${escHtml(e.filename)}</td>
+            <td class="px-5 py-3">${statusBadge}</td>
+            <td class="px-5 py-3 font-semibold text-gray-600">${escHtml(e.classes)}</td>
+            <td class="px-5 py-3 text-right text-gray-400 font-mono">${e.time}</td>
+            <td class="px-5 py-3 text-right font-bold text-gray-500">${e.duration}</td>`;
+        histTbody.appendChild(tr);
+    });
+}
+
+btnClearHist.addEventListener('click', () => {
+    if (!history.length) return;
+    if (!confirm('Hapus semua riwayat scan?')) return;
+    history = [];
+    renderHistory();
+});
+
+/* ────────────────────────────────────────────────────────
+   UTILS
+──────────────────────────────────────────────────────── */
+function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ── init ── */
+showState('empty');
+renderHistory();
+</script>
+</body>
+</html>
